@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Blockchain Voting System</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Sora:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0e1a;
+    --surface: #111827;
+    --surface2: #1a2235;
+    --border: rgba(99,179,237,0.15);
+    --accent: #63b3ed;
+    --accent2: #7f5af0;
+    --green: #38ef7d;
+    --red: #fc5c7d;
+    --text: #e2e8f0;
+    --muted: #718096;
+    --mono: 'Space Mono', monospace;
+    --sans: 'Sora', sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+  /* Background grid */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(99,179,237,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(99,179,237,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+  .container {
+    max-width: 700px;
+    margin: 0 auto;
+    padding: 2rem 1.5rem 4rem;
+    position: relative;
+    z-index: 1;
+  }
+  /* Header */
+  .header {
+    text-align: center;
+    margin-bottom: 2.5rem;
+    animation: fadeDown 0.6s ease both;
+  }
+  .chain-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(99,179,237,0.1);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 5px 14px;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--accent);
+    letter-spacing: .05em;
+    margin-bottom: 1rem;
+  }
+  .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); animation: pulse 2s infinite; }
+  h1 {
+    font-size: clamp(1.6rem, 4vw, 2.4rem);
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    background: linear-gradient(135deg, #e2e8f0, var(--accent));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: .5rem;
+  }
+  .subtitle { font-size: 14px; color: var(--muted); font-weight: 300; }
+
+  /* Status bar */
+  .status-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: .75rem 1.25rem;
+    margin-bottom: 1.5rem;
+    font-family: var(--mono);
+    font-size: 12px;
+    animation: fadeIn 0.6s 0.1s ease both;
+  }
+  .status-item { display: flex; flex-direction: column; gap: 3px; }
+  .status-label { color: var(--muted); font-size: 10px; letter-spacing: .08em; text-transform: uppercase; }
+  .status-val { color: var(--text); }
+  .status-val.connected { color: var(--green); }
+  .status-val.truncate { max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  /* Connect button */
+  .connect-btn {
+    width: 100%;
+    padding: 1rem;
+    background: linear-gradient(135deg, var(--accent2), var(--accent));
+    border: none;
+    border-radius: 12px;
+    color: white;
+    font-family: var(--sans);
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    margin-bottom: 1.5rem;
+    transition: opacity .2s, transform .15s;
+    animation: fadeIn 0.6s 0.2s ease both;
+  }
+  .connect-btn:hover { opacity: .9; transform: translateY(-1px); }
+  .connect-btn:active { transform: scale(.98); }
+  .connect-btn:disabled { opacity: .5; cursor: not-allowed; transform: none; }
+
+  /* Candidates */
+  .section-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: .12em;
+    color: var(--muted);
+    text-transform: uppercase;
+    margin-bottom: .75rem;
+  }
+  .candidates { display: flex; flex-direction: column; gap: .75rem; margin-bottom: 1.5rem; }
+  .candidate {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 1.25rem 1.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    cursor: pointer;
+    transition: all .2s;
+    animation: fadeIn 0.5s ease both;
+    position: relative;
+    overflow: hidden;
+  }
+  .candidate::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, rgba(99,179,237,0.05), transparent);
+    opacity: 0;
+    transition: opacity .2s;
+  }
+  .candidate:hover { border-color: rgba(99,179,237,0.4); transform: translateY(-2px); }
+  .candidate:hover::before { opacity: 1; }
+  .candidate:nth-child(1) { animation-delay: .1s; }
+  .candidate:nth-child(2) { animation-delay: .2s; }
+  .candidate:nth-child(3) { animation-delay: .3s; }
+  .candidate-left { display: flex; align-items: center; gap: 14px; }
+  .candidate-num {
+    width: 38px; height: 38px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--mono);
+    font-size: 13px;
+    font-weight: 700;
+    background: rgba(127,90,240,0.15);
+    border: 1px solid rgba(127,90,240,0.3);
+    color: #a78bfa;
+    flex-shrink: 0;
+  }
+  .candidate-name { font-size: 15px; font-weight: 600; }
+  .candidate-sub { font-size: 12px; color: var(--muted); margin-top: 2px; font-family: var(--mono); }
+  .vote-count {
+    display: flex; flex-direction: column; align-items: flex-end; gap: 4px;
+  }
+  .count-num { font-family: var(--mono); font-size: 22px; font-weight: 700; color: var(--accent); }
+  .count-label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; }
+  .vote-bar-wrap {
+    height: 3px; background: rgba(99,179,237,0.1); border-radius: 3px;
+    margin-top: .75rem; overflow: hidden;
+  }
+  .vote-bar {
+    height: 100%; border-radius: 3px;
+    background: linear-gradient(90deg, var(--accent2), var(--accent));
+    transition: width .6s ease;
+  }
+
+  /* Vote button */
+  .vote-btn {
+    width: 100%;
+    padding: 1rem;
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    margin-top: .75rem;
+    transition: all .2s;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+  }
+  .vote-btn:hover:not(:disabled) {
+    background: rgba(99,179,237,0.08);
+    border-color: rgba(99,179,237,0.4);
+    color: var(--accent);
+  }
+  .vote-btn:disabled { opacity: .4; cursor: not-allowed; }
+  .vote-btn.success { border-color: rgba(56,239,125,.4); color: var(--green); background: rgba(56,239,125,0.06); }
+
+  /* Alert */
+  .alert {
+    padding: .75rem 1.1rem;
+    border-radius: 10px;
+    font-size: 13px;
+    margin-bottom: 1rem;
+    display: none;
+    align-items: center;
+    gap: 8px;
+    animation: fadeIn .3s ease;
+  }
+  .alert.show { display: flex; }
+  .alert.info { background: rgba(99,179,237,0.1); border: 1px solid rgba(99,179,237,0.25); color: var(--accent); }
+  .alert.error { background: rgba(252,92,125,0.1); border: 1px solid rgba(252,92,125,0.25); color: var(--red); }
+  .alert.success { background: rgba(56,239,125,0.1); border: 1px solid rgba(56,239,125,0.25); color: var(--green); }
+
+  /* Tx log */
+  .tx-section { margin-top: 2rem; animation: fadeIn .5s ease; }
+  .tx-entry {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: .75rem 1rem;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+    margin-bottom: .5rem;
+  }
+  .tx-entry span { color: var(--green); }
+
+  /* Animations */
+  @keyframes fadeDown { from { opacity:0; transform: translateY(-16px); } to { opacity:1; transform: none; } }
+  @keyframes fadeIn  { from { opacity:0; transform: translateY(8px); }    to { opacity:1; transform: none; } }
+  @keyframes pulse   { 0%,100% { opacity:1; } 50% { opacity:.4; } }
+  @keyframes spin    { to { transform: rotate(360deg); } }
+  .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid transparent; border-top-color: currentColor; border-radius: 50%; animation: spin .6s linear infinite; }
+
+  /* Footer */
+  .footer { text-align:center; margin-top:3rem; font-size:11px; font-family:var(--mono); color:var(--muted); }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <div class="header">
+    <div class="chain-badge"><div class="dot"></div> ETHEREUM LOCAL NETWORK</div>
+    <h1>Blockchain Voting System</h1>
+    <p class="subtitle">Secure · Transparent · Decentralized — Built with Solidity & Web3</p>
+  </div>
+
+  <div class="status-bar">
+    <div class="status-item">
+      <span class="status-label">Network</span>
+      <span class="status-val" id="netName">Not connected</span>
+    </div>
+    <div class="status-item">
+      <span class="status-label">Wallet</span>
+      <span class="status-val truncate" id="walletAddr">—</span>
+    </div>
+    <div class="status-item" style="text-align:right">
+      <span class="status-label">Status</span>
+      <span class="status-val" id="voteStatus">—</span>
+    </div>
+  </div>
+
+  <div id="alertBox" class="alert info">
+    <span id="alertMsg">Connect your MetaMask wallet to vote</span>
+  </div>
+
+  <button class="connect-btn" id="connectBtn" onclick="connectWallet()">
+    Connect MetaMask Wallet
+  </button>
+
+  <p class="section-label">Candidates — Select to vote</p>
+  <div class="candidates" id="candidateList"></div>
+
+  <div id="txLog" class="tx-section" style="display:none">
+    <p class="section-label">Transaction Log</p>
+    <div id="txEntries"></div>
+  </div>
+
+  <div class="footer">SkillInfytech Blockchain Internship Project &nbsp;|&nbsp; Siddharam Kolle &nbsp;|&nbsp; 2026</div>
+</div>
+
+<script>
+const CONTRACT_ADDRESS = "0x5FbDB2315678afecb367f032d93F642f64180aa3";
+
+const ABI = [
+  "function candidatesCount() view returns (uint)",
+  "function candidates(uint) view returns (uint id, string name, uint voteCount)",
+  "function hasVoted(address) view returns (bool)",
+  "function vote(uint candidateId)",
+  "event VoteCast(address indexed voter, uint indexed candidateId)"
+];
+
+let provider, signer, contract, userAddress;
+let candidates = [];
+
+function showAlert(msg, type = 'info') {
+  const box = document.getElementById('alertBox');
+  const txt = document.getElementById('alertMsg');
+  box.className = `alert ${type} show`;
+  txt.textContent = msg;
+}
+
+async function connectWallet() {
+  if (!window.ethereum) {
+    showAlert('MetaMask not found! Please install MetaMask extension.', 'error');
+    return;
+  }
+  try {
+    document.getElementById('connectBtn').disabled = true;
+    document.getElementById('connectBtn').innerHTML = '<span class="spinner"></span> Connecting...';
+
+    const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+    userAddress = accounts[0];
+
+    provider = new ethers.BrowserProvider(window.ethereum);
+    signer = await provider.getSigner();
+
+    const network = await provider.getNetwork();
+    document.getElementById('netName').textContent = network.name === 'unknown' ? 'Localhost' : network.name;
+    document.getElementById('netName').classList.add('connected');
+    document.getElementById('walletAddr').textContent = userAddress.slice(0,6) + '...' + userAddress.slice(-4);
+
+    document.getElementById('connectBtn').textContent = '✓ Wallet Connected';
+    document.getElementById('connectBtn').style.background = 'rgba(56,239,125,0.15)';
+    document.getElementById('connectBtn').style.color = '#38ef7d';
+    document.getElementById('connectBtn').style.border = '1px solid rgba(56,239,125,0.3)';
+
+    if (CONTRACT_ADDRESS === "0x5FbDB2315678afecb367f032d93F642f64180aa3") {
+      showAlert('Wallet connected! Now paste your deployed contract address in index.html and refresh.', 'info');
+      loadDemoData();
+      return;
+    }
+
+    contract = new ethers.Contract(CONTRACT_ADDRESS, ABI, signer);
+    await loadCandidates();
+
+    const voted = await contract.hasVoted(userAddress);
+    if (voted) {
+      document.getElementById('voteStatus').textContent = 'Already voted';
+      showAlert('You have already cast your vote on this blockchain.', 'info');
+    } else {
+      document.getElementById('voteStatus').textContent = 'Eligible to vote';
+      document.getElementById('voteStatus').style.color = '#38ef7d';
+      showAlert('Wallet connected! Select a candidate below to cast your vote.', 'success');
+    }
+
+  } catch (err) {
+    showAlert('Connection failed: ' + err.message, 'error');
+    document.getElementById('connectBtn').disabled = false;
+    document.getElementById('connectBtn').textContent = 'Connect MetaMask Wallet';
+  }
+}
+
+async function loadCandidates() {
+  const count = await contract.candidatesCount();
+  candidates = [];
+  let totalVotes = 0;
+  for (let i = 1; i <= Number(count); i++) {
+    const c = await contract.candidates(i);
+    candidates.push({ id: Number(c.id), name: c.name, votes: Number(c.voteCount) });
+    totalVotes += Number(c.voteCount);
+  }
+  renderCandidates(totalVotes);
+}
+
+function loadDemoData() {
+  candidates = [
+    { id: 1, name: "Candidate 1", votes: 5 },
+    { id: 2, name: "Candidate 2", votes: 3 },
+    { id: 3, name: "Candidate 3", votes: 1 },
+  ];
+  renderCandidates(9);
+  document.getElementById('voteStatus').textContent = 'Demo mode';
+}
+
+function renderCandidates(totalVotes) {
+  const list = document.getElementById('candidateList');
+  list.innerHTML = '';
+  candidates.forEach((c, i) => {
+    const pct = totalVotes > 0 ? Math.round((c.votes / totalVotes) * 100) : 0;
+    const div = document.createElement('div');
+    div.className = 'candidate';
+    div.innerHTML = `
+      <div class="candidate-left">
+        <div class="candidate-num">${String(i+1).padStart(2,'0')}</div>
+        <div>
+          <div class="candidate-name">${c.name}</div>
+          <div class="candidate-sub">ID #${c.id} &nbsp;·&nbsp; ${pct}% of votes</div>
+          <div class="vote-bar-wrap" style="width:120px;margin-top:6px">
+            <div class="vote-bar" style="width:${pct}%"></div>
+          </div>
+        </div>
+      </div>
+      <div class="vote-count">
+        <div class="count-num">${c.votes}</div>
+        <div class="count-label">Votes</div>
+      </div>
+    `;
+    div.appendChild(createVoteBtn(c.id, c.name));
+    list.appendChild(div);
+  });
+}
+
+function createVoteBtn(id, name) {
+  const btn = document.createElement('button');
+  btn.className = 'vote-btn';
+  btn.id = `voteBtn-${id}`;
+  btn.innerHTML = `Vote for ${name}`;
+  btn.onclick = (e) => { e.stopPropagation(); castVote(id, name); };
+  if (!contract) btn.disabled = true;
+  return btn;
+}
+
+async function castVote(candidateId, candidateName) {
+  if (!contract) {
+    showAlert('Connect wallet and set contract address first.', 'error');
+    return;
+  }
+  try {
+    const btn = document.getElementById(`voteBtn-${candidateId}`);
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span> Sending transaction...';
+    showAlert('Transaction submitted — waiting for confirmation...', 'info');
+
+    const tx = await contract.vote(candidateId);
+    await tx.wait();
+
+    btn.classList.add('success');
+    btn.innerHTML = '✓ Vote Cast Successfully!';
+    showAlert(`Vote successfully cast for ${candidateName}! Transaction confirmed on blockchain.`, 'success');
+
+    document.querySelectorAll('.vote-btn').forEach(b => b.disabled = true);
+
+    logTx(tx.hash, candidateName);
+    await loadCandidates();
+
+  } catch (err) {
+    showAlert('Error: ' + (err.reason || err.message), 'error');
+    const btn = document.getElementById(`voteBtn-${candidateId}`);
+    btn.disabled = false;
+    btn.innerHTML = `Vote for ${candidateName}`;
+  }
+}
+
+function logTx(hash, candidate) {
+  document.getElementById('txLog').style.display = 'block';
+  const entry = document.createElement('div');
+  entry.className = 'tx-entry';
+  entry.innerHTML = `<span>✓ VOTE CAST</span> for ${candidate}<br>TX: ${hash.slice(0,20)}...${hash.slice(-8)}<br>Block confirmed · ${new Date().toLocaleTimeString()}`;
+  document.getElementById('txEntries').prepend(entry);
+}
+
+window.ethereum?.on('accountsChanged', () => location.reload());
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.7.0/ethers.umd.min.js"></script>
+</body>
+</html>
