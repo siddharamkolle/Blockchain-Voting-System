@@ -7,4 +7,4 @@ async function main() {
   console.log("Contract deployed to:", await voting.getAddress());
 }
 
-main();
+main();git
